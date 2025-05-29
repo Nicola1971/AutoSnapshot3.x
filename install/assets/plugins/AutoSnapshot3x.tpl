@@ -6,10 +6,10 @@
  *
  * @author    Nicola Lambathakis http://www.tattoocms.it/
  * @category    plugin
- * @version     1.3.1
+ * @version     1.3.2
  * @license	 http://www.gnu.org/copyleft/gpl.html GNU Public License (GPL)
  * @internal    @events OnUserLogin,OnBeforeUserLogout
- * @internal @properties &backupPath=Backup Path;string;assets/backup/ &keepBackups=Number of backups to keep;string;10 &allow_backup=Run Backup for:;menu;ThisRolesOnly,ThisUsersOnly;ThisRolesOnly &this_roles=Role IDs (comma separated):;string;1 &this_users=User IDs (comma separated):;string;1 &debugMode=Debug Mode;menu;false,true;false
+ * @internal @properties &backupPath=Backup Path;string;assets/backup/ &keepBackups=Number of snapshots to keep;string;10 &backup_at=Run Backup at:;menu;Login,Logout,Both;Logout &allow_backup=Run Backup for:;menu;ThisRolesOnly,ThisUsersOnly;ThisRolesOnly &this_roles=Role IDs (comma separated):;string;1 &this_users=User IDs (comma separated):;string;1 &debugMode=Debug Mode;menu;false,true;false
  * @internal    @modx_category Admin
  */
 
@@ -28,16 +28,17 @@ function autoBackupLog($message, $debugMode = false) {
 }
 
 // Initial log
-autoBackupLog("--- START AUTOBACKUP 3.x ---", $debugMode);
+autoBackupLog("--- START AUTOSNAPSHOT 3.x ---", $debugMode);
 
 // Settings
 $keepBackups = isset($keepBackups) && is_numeric($keepBackups) ? (int)$keepBackups : 10;
 $backupPath = isset($backupPath) && !empty($backupPath) ? $backupPath : 'assets/backup/';
+$backup_at = isset($backup_at) ? $backup_at : 'Logout';
 $allow_backup = isset($allow_backup) ? $allow_backup : 'ThisRolesOnly';
 $this_roles = isset($this_roles) ? trim($this_roles) : '1';
 $this_users = isset($this_users) ? trim($this_users) : '1';
 
-autoBackupLog("Settings: backupPath={$backupPath}, keepBackups={$keepBackups}, allow_backup={$allow_backup}", $debugMode);
+autoBackupLog("Settings: backupPath={$backupPath}, keepBackups={$keepBackups}, backup_at={$backup_at}, allow_backup={$allow_backup}", $debugMode);
 
 // Supported events
 $evtName = EvolutionCMS()->event->name ?? 'Unknown';
@@ -47,6 +48,25 @@ autoBackupLog("Event triggered: {$evtName}", $debugMode);
 $validEvents = ['OnUserLogin', 'OnBeforeUserLogout'];
 if (!in_array($evtName, $validEvents)) {
     autoBackupLog("Unsupported event: {$evtName}", $debugMode);
+    return;
+}
+
+// Check if backup should run for this specific event
+$should_backup = false;
+switch ($backup_at) {
+    case 'Login':
+        $should_backup = ($evtName === 'OnUserLogin');
+        break;
+    case 'Logout':
+        $should_backup = ($evtName === 'OnBeforeUserLogout');
+        break;
+    case 'Both':
+        $should_backup = true; // For all supported events
+        break;
+}
+
+if (!$should_backup) {
+    autoBackupLog("Backup skipped: event {$evtName} not enabled (setting: {$backup_at})", $debugMode);
     return;
 }
 
@@ -206,9 +226,9 @@ if (!file_exists($backupPath . ".htaccess")) {
 // Create backup filename - NEW FORMAT WITH DATE FIRST
 $timestamp = date('Y-m-d_H-i-s');
 $eventShort = str_replace(['On', 'User', 'Before', 'After'], '', $evtName);
-$filename = "{$timestamp}_auto_backup_{$eventShort}_{$username}.sql";
+$filename = "{$timestamp}_auto_snapshot_{$eventShort}_{$username}.sql";
 $path = $backupPath . $filename;
-autoBackupLog("Backup file: {$path}", $debugMode);
+autoBackupLog("Snapshot file: {$path}", $debugMode);
 
 // Get database credentials from Evolution CMS 3.x
 try {
@@ -259,7 +279,7 @@ try {
             $output .= "# Server version: " . EvolutionCMS()->getDatabase()->getVersion() . "\n";
             $output .= "# PHP Version: " . phpversion() . "\n";
             $output .= "# Database: " . $database . "\n";
-            $output .= "# Description: Auto-backup triggered by {$username} via {$evtName}\n";
+            $output .= "# Description: Auto-snapshot triggered by {$username} via {$evtName}\n";
             $output .= "#\n";
             $output .= "# ------------------------------------------------------\n\n";
             
@@ -365,10 +385,10 @@ try {
     // Final verification
     if ($backupSuccess) {
         // Log success
-        autoBackupLog("SUCCESS: AutoBackup completed: {$filename} (" . filesize($path) . " bytes)", $debugMode);
+        autoBackupLog("SUCCESS: AutoSnapshot completed: {$filename} (" . filesize($path) . " bytes)", $debugMode);
         
         // Clean old backups
-        $pattern = $backupPath . "*_auto_backup_*.sql";
+        $pattern = $backupPath . "*_auto_snapshot_*.sql";
         $files = glob($pattern);
         
         if (is_array($files) && count($files) > $keepBackups) {
@@ -390,11 +410,11 @@ try {
             }
         }
     } else {
-        autoBackupLog("ERROR: AutoBackup failed: unable to create database backup", $debugMode);
+        autoBackupLog("ERROR: AutoSnapshot failed: unable to create database backup", $debugMode);
     }
     
 } catch (Exception $e) {
-    autoBackupLog("ERROR: AutoBackup exception: " . $e->getMessage(), $debugMode);
+    autoBackupLog("ERROR: AutoSnapshot exception: " . $e->getMessage(), $debugMode);
 }
 
-autoBackupLog("--- END AUTOBACKUP 3.x ---", $debugMode);
+autoBackupLog("--- END AUTOSNAPSHOT 3.x ---", $debugMode);
