@@ -3,4 +3,4 @@
 
 Automatic backups at every login and/or logout in the manager
 
-**more info and instructions at:** https://www.tattoocms.it/extras/plugins/autosnapshot-3.x.html
+**more info and instructions at:** https://www.tattoocms.it/extras/plugins/autosnapshot-3x.html
