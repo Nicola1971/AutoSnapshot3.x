@@ -6,7 +6,7 @@
  *
  * @author    Nicola Lambathakis http://www.tattoocms.it/
  * @category    plugin
- * @version     1.3.2
+ * @version     1.3.3
  * @license	 http://www.gnu.org/copyleft/gpl.html GNU Public License (GPL)
  * @internal    @events OnUserLogin,OnBeforeUserLogout
  * @internal @properties &backupPath=Backup Path;string;assets/backup/ &keepBackups=Number of snapshots to keep;string;10 &backup_at=Run Backup at:;menu;Login,Logout,Both;Logout &allow_backup=Run Backup for:;menu;ThisRolesOnly,ThisUsersOnly;ThisRolesOnly &this_roles=Role IDs (comma separated):;string;1 &this_users=User IDs (comma separated):;string;1 &debugMode=Debug Mode;menu;false,true;false
@@ -126,6 +126,10 @@ if ($current_user > 0) {
         $mysqli = new mysqli($host, $db_username, $password, $database);
         
         if (!$mysqli->connect_error) {
+            // FIX: IMPOSTA IL CHARSET PER GESTIRE CORRETTAMENTE I CARATTERI SPECIALI
+            $mysqli->set_charset('utf8mb4');
+            autoBackupLog("Database connection established with utf8mb4 charset for user info", $debugMode);
+            
             // Try different possible user tables for Evolution 3.x
             $possible_tables = [
                 $prefix . 'users',           // Standard user table in Evolution 3.x  
@@ -280,6 +284,7 @@ try {
             $output .= "# PHP Version: " . phpversion() . "\n";
             $output .= "# Database: " . $database . "\n";
             $output .= "# Description: Auto-snapshot triggered by {$username} via {$evtName}\n";
+            $output .= "# CharSet Fix: utf8mb4 support enabled\n";
             $output .= "#\n";
             $output .= "# ------------------------------------------------------\n\n";
             
@@ -297,7 +302,10 @@ try {
             // Use direct mysqli for dump
             $mysqli = new mysqli($host, $db_username, $password, $database);
             if (!$mysqli->connect_error) {
-                autoBackupLog("MySQL connection established for manual dump", $debugMode);
+                // FIX: IMPOSTA IL CHARSET PER GESTIRE CORRETTAMENTE I CARATTERI SPECIALI
+                $mysqli->set_charset('utf8mb4');
+                
+                autoBackupLog("MySQL connection established for manual dump with utf8mb4 charset", $debugMode);
                 
                 // Loop through all tables
                 $totalRows = 0;
@@ -367,7 +375,7 @@ try {
                 // Verify if file exists and has reasonable size
                 if (file_exists($path)) {
                     $filesize = filesize($path);
-                    autoBackupLog("Manual backup with description completed: {$filesize} bytes, {$totalRows} total rows", $debugMode);
+                    autoBackupLog("Manual backup with utf8mb4 charset completed: {$filesize} bytes, {$totalRows} total rows", $debugMode);
                     $backupSuccess = ($filesize > 500 && $totalRows > 0);
                 }
                 
