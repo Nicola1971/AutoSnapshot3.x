@@ -126,7 +126,6 @@ if ($current_user > 0) {
         $mysqli = new mysqli($host, $db_username, $password, $database);
         
         if (!$mysqli->connect_error) {
-            // FIX: IMPOSTA IL CHARSET PER GESTIRE CORRETTAMENTE I CARATTERI SPECIALI
             $mysqli->set_charset('utf8mb4');
             autoBackupLog("Database connection established with utf8mb4 charset for user info", $debugMode);
             
@@ -284,7 +283,6 @@ try {
             $output .= "# PHP Version: " . phpversion() . "\n";
             $output .= "# Database: " . $database . "\n";
             $output .= "# Description: Auto-snapshot triggered by {$username} via {$evtName}\n";
-            $output .= "# CharSet Fix: utf8mb4 support enabled\n";
             $output .= "#\n";
             $output .= "# ------------------------------------------------------\n\n";
             
@@ -302,7 +300,6 @@ try {
             // Use direct mysqli for dump
             $mysqli = new mysqli($host, $db_username, $password, $database);
             if (!$mysqli->connect_error) {
-                // FIX: IMPOSTA IL CHARSET PER GESTIRE CORRETTAMENTE I CARATTERI SPECIALI
                 $mysqli->set_charset('utf8mb4');
                 
                 autoBackupLog("MySQL connection established for manual dump with utf8mb4 charset", $debugMode);
