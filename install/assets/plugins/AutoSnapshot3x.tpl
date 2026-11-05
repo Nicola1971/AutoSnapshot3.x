@@ -6,7 +6,7 @@
  *
  * @author    Nicola Lambathakis http://www.tattoocms.it/
  * @category    plugin
- * @version     1.3.3
+ * @version     1.3.4
  * @license	 http://www.gnu.org/copyleft/gpl.html GNU Public License (GPL)
  * @internal    @events OnUserLogin,OnBeforeUserLogout
  * @internal @properties &backupPath=Backup Path;string;assets/backup/ &keepBackups=Number of snapshots to keep;string;10 &backup_at=Run Backup at:;menu;Login,Logout,Both;Logout &allow_backup=Run Backup for:;menu;ThisRolesOnly,ThisUsersOnly;ThisRolesOnly &this_roles=Role IDs (comma separated):;string;1 &this_users=User IDs (comma separated):;string;1 &debugMode=Debug Mode;menu;false,true;false
@@ -293,8 +293,14 @@ try {
             $output .= "/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n";
             $output .= "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;\n\n";
             
+            // Open the snapshot file once and keep the handle for all writes
+            $fh = fopen($path, 'wb');
+            if (!$fh) {
+                throw new Exception("Unable to open snapshot file for writing: {$path}");
+            }
+
             // Write header to file
-            $headerBytes = file_put_contents($path, $output);
+            $headerBytes = fwrite($fh, $output);
             autoBackupLog("Header with description written: {$headerBytes} bytes", $debugMode);
             
             // Use direct mysqli for dump
@@ -321,7 +327,7 @@ try {
                     $output .= $row[1] . ";\n\n";
                     
                     // Write structure to file
-                    file_put_contents($path, $output, FILE_APPEND);
+                    fwrite($fh, $output);
                     
                     // Get table data
                     $result = $mysqli->query("SELECT * FROM `{$table}`");
@@ -353,10 +359,10 @@ try {
                             $output .= ");\n";
                             
                             // Write each row to file
-                            file_put_contents($path, $output, FILE_APPEND);
+                            fwrite($fh, $output);
                         }
                         
-                        file_put_contents($path, "\n", FILE_APPEND);
+                        fwrite($fh, "\n");
                     }
                 }
                 
@@ -367,7 +373,9 @@ try {
                 $output .= "/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n";
                 $output .= "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n";
                 
-                file_put_contents($path, $output, FILE_APPEND);
+                fwrite($fh, $output);
+                fclose($fh);
+                clearstatcache(true, $path);
                 
                 // Verify if file exists and has reasonable size
                 if (file_exists($path)) {
@@ -378,6 +386,7 @@ try {
                 
                 $mysqli->close();
             } else {
+                fclose($fh);
                 autoBackupLog("ERROR mysqli connection for manual dump: {$mysqli->connect_error}", $debugMode);
             }
         } else {
