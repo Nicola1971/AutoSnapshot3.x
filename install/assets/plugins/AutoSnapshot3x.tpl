@@ -6,10 +6,10 @@
  *
  * @author    Nicola Lambathakis http://www.tattoocms.it/
  * @category    plugin
- * @version     1.3.4
+ * @version     1.3.5
  * @license	 http://www.gnu.org/copyleft/gpl.html GNU Public License (GPL)
  * @internal    @events OnUserLogin,OnBeforeUserLogout
- * @internal @properties &backupPath=Backup Path;string;assets/backup/ &keepBackups=Number of snapshots to keep;string;10 &backup_at=Run Backup at:;menu;Login,Logout,Both;Logout &allow_backup=Run Backup for:;menu;ThisRolesOnly,ThisUsersOnly;ThisRolesOnly &this_roles=Role IDs (comma separated):;string;1 &this_users=User IDs (comma separated):;string;1 &debugMode=Debug Mode;menu;false,true;false
+ * @internal @properties &backupPath=Backup Path (a folder other than the Evo snapshot folder: no 10-file limit, no one-click restore from the Snapshot list);string;assets/backup/ &keepBackups=Number of snapshots to keep;string;10 &backup_at=Run Backup at:;menu;Login,Logout,Both;Logout &allow_backup=Run Backup for:;menu;ThisRolesOnly,ThisUsersOnly;ThisRolesOnly &this_roles=Role IDs (comma separated):;string;1 &this_users=User IDs (comma separated):;string;1 &debugMode=Debug Mode;menu;false,true;false
  * @internal    @modx_category Admin
  */
 
@@ -425,6 +425,18 @@ try {
         }
     } else {
         autoBackupLog("ERROR: AutoSnapshot failed: unable to create database backup", $debugMode);
+
+        // Remove incomplete snapshot file so it doesn't count toward keepBackups
+        if (isset($fh) && is_resource($fh)) {
+            fclose($fh);
+        }
+        if (file_exists($path)) {
+            if (@unlink($path)) {
+                autoBackupLog("Incomplete snapshot file removed: {$filename}", $debugMode);
+            } else {
+                autoBackupLog("ERROR: unable to remove incomplete snapshot file: {$filename}", $debugMode);
+            }
+        }
     }
     
 } catch (Exception $e) {
